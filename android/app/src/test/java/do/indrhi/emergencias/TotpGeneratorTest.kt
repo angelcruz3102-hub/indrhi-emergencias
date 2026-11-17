@@ -6,8 +6,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TotpGeneratorTest {
-
-    // Vector RFC 6238 (SHA-256) — variante de 6 dígitos.
     private val secret = "12345678901234567890123456789012".toByteArray()
 
     @Test
