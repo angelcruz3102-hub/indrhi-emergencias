@@ -1,0 +1,36 @@
+{
+  "dashboard": {
+    "title": "Piloto ED1 · RF-9.4",
+    "panels": [
+      {
+        "title": "Acuses < 60 s (%)",
+        "type": "stat",
+        "targets": [{
+          "expr": "sum(rate(indrhi_ack_latency_seconds_bucket{le=\"60\"}[1h])) / sum(rate(indrhi_ack_latency_seconds_count[1h])) * 100"
+        }],
+        "fieldConfig": { "defaults": { "thresholds": { "steps": [
+          { "color": "red", "value": 0 },
+          { "color": "yellow", "value": 85 },
+          { "color": "green", "value": 90 }
+        ]}}}
+      },
+      {
+        "title": "Rojos falsos positivos (24h)",
+        "type": "stat",
+        "targets": [{
+          "expr": "sum(rate(indrhi_alerts_emitted_total{severity=\"ROJO\",is_drill=\"false\"}[24h]))"
+        }]
+      },
+      {
+        "title": "Poller sísmico vivo",
+        "type": "stat",
+        "targets": [{ "expr": "indrhi_seismic_poller_alive" }]
+      },
+      {
+        "title": "Dispositivos con pantalla completa OK",
+        "type": "stat",
+        "targets": [{ "expr": "indrhi_device_health_ratio{indicator=\"full_screen\"}" }]
+      }
+    ]
+  }
+}
