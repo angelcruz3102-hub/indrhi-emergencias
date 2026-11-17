@@ -21,18 +21,13 @@ android/captures/
 **/firebase-sa.json
 **/serviceAccountKey.json
 
-# PostgreSQL dump
-*.dump
-*.sql.gz
+# Gradle wrapper JAR (regenerable)
+!android/gradle/wrapper/gradle-wrapper.jar
 
 # IDE
 .idea/
 .vscode/
 .DS_Store
 
-# Gradle wrapper jar (regenerable)
-!android/gradle/wrapper/gradle-wrapper.jar
-
 # Coverage
 coverage/
-.nyc_output/
