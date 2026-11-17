@@ -8,30 +8,42 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: indrhi_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d indrhi_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+          --health-start-period 20s
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Start PostgreSQL
+      - name: Verify PostgreSQL accepts "postgres"
+        env:
+          PGPASSWORD: test
         run: |
           set -e
-          docker run -d --name pg \
-            -e POSTGRES_USER=postgres \
-            -e POSTGRES_PASSWORD=test \
-            -e POSTGRES_DB=indrhi_test \
-            -e POSTGRES_HOST_AUTH_METHOD=trust \
-            -p 5432:5432 \
-            postgres:16-alpine
-
-          for i in $(seq 1 60); do
-            if docker exec pg pg_isready -U postgres -d indrhi_test; then
-              echo "✅ PostgreSQL listo (intento $i)"
-              PGPASSWORD=test psql -h localhost -U postgres -d indrhi_test -c "SELECT current_user;"
+          for i in $(seq 1 30); do
+            if psql -h localhost -U postgres -d indrhi_test \
+                 -c "SELECT current_user, current_database();" 2>/dev/null; then
+              echo "✅ PostgreSQL listo y autenticando como postgres"
               exit 0
             fi
+            echo "Intento $i/30..."
             sleep 2
           done
-          echo "❌ No arrancó"
-          docker logs pg
+          echo "❌ PostgreSQL no aceptó la conexión como postgres"
+          docker ps -a
           exit 1
 
       - uses: actions/setup-node@v4
@@ -40,10 +52,12 @@ jobs:
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
-      - working-directory: backend
+      - name: Install
+        working-directory: backend
         run: npm ci
 
-      - working-directory: backend
+      - name: Build
+        working-directory: backend
         run: npm run build
 
       - name: Test
@@ -58,6 +72,14 @@ jobs:
           PGDATABASE: indrhi_test
         run: npm test
 
-      - name: Dump logs on failure
+      - name: Diagnostic on failure
         if: failure()
-        run: docker logs pg || true
+        run: |
+          echo "=== PG* env vars ==="
+          env | grep -E "^PG" || true
+          echo "=== TEST_DATABASE_URL ==="
+          echo "${TEST_DATABASE_URL:-<unset>}"
+          echo "=== Containers ==="
+          docker ps -a
+          echo "=== Postgres logs ==="
+          docker logs $(docker ps -aqf "ancestor=postgres:16-alpine" | head -1) 2>&1 | tail -100 || true
