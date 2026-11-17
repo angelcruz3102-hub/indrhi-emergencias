@@ -1,0 +1,11 @@
+<resources>
+    <style name="Theme.Indrhi" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/brand_surface</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+    <style name="Theme.Indrhi.FullScreenAlert" parent="Theme.Indrhi">
+        <item name="android:windowBackground">@color/alert_red</item>
+        <item name="android:windowShowWallpaper">false</item>
+    </style>
+</resources>
