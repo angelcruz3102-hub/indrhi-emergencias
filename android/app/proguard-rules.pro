@@ -1,0 +1,5 @@
+-keep class do.indrhi.emergencias.notifications.AlertMessagingService { *; }
+-keep class do.indrhi.emergencias.notifications.AlertActionReceiver { *; }
+-keep class do.indrhi.emergencias.notifications.AlertPayload { *; }
+-keep class do.indrhi.emergencias.presence.GeofenceBroadcastReceiver { *; }
+-keep class do.indrhi.emergencias.presence.BootReceiver { *; }
