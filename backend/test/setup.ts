@@ -4,10 +4,38 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
+// ────────────────────────────────────────────────────────────────
+// Resolución del connection string.
+//   - `||` (no `??`): si llega '' o undefined, cae al default.
+//   - Guard explícito: si algo quedó mal, falla ruidosamente AQUÍ
+//     y no más abajo con "role root does not exist".
+// ────────────────────────────────────────────────────────────────
+const connectionString =
+  (process.env.TEST_DATABASE_URL ?? '').trim() ||
+  'postgres://postgres:test@localhost:5432/indrhi_test';
+
+const parsed = new URL(connectionString);
+if (!parsed.username) {
+  throw new Error(
+    `TEST_DATABASE_URL sin usuario: "${connectionString}". ` +
+      `Se esperaba algo como postgres://postgres:test@localhost:5432/indrhi_test`,
+  );
+}
+if (parsed.username === 'root') {
+  throw new Error(
+    `TEST_DATABASE_URL con usuario "root". ` +
+      `Configura el env en el workflow o exporta TEST_DATABASE_URL antes de "npm test".`,
+  );
+}
+
+console.log(
+  `[test/setup] conectando como "${parsed.username}" a ${parsed.host}:${parsed.port}${parsed.pathname}`,
+);
+
 export const testPool = new pg.Pool({
-  connectionString: process.env.TEST_DATABASE_URL
-    ?? 'postgres://postgres:test@localhost:5432/indrhi_test',
+  connectionString,
   max: 2,
+  // Sin `user`, sin `password` sueltos: TODO viene del connectionString.
 });
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
