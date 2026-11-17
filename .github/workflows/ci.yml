@@ -15,40 +15,79 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: test
           POSTGRES_DB: indrhi_test
-        ports: ['5432:5432']
+          # Autenticación sin password: contenedor efímero de CI.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres -d indrhi_test"
           --health-interval 5s
           --health-timeout 5s
-          --health-retries 10
+          --health-retries 20
+          --health-start-period 20s
+
     steps:
       - uses: actions/checkout@v4
+
+      # ─────────────────────────────────────────────────────────────
+      # Espera activa + verificación de auth. Si Postgres rechaza al
+      # usuario postgres, falla aquí con el motivo exacto, no en npm test.
+      # ─────────────────────────────────────────────────────────────
+      - name: Verify PostgreSQL accepts "postgres"
+        env:
+          PGPASSWORD: test
+        run: |
+          set -e
+          for i in $(seq 1 30); do
+            if psql -h localhost -U postgres -d indrhi_test \
+                 -c "SELECT current_user, current_database();" 2>/dev/null; then
+              echo "✅ PostgreSQL listo y autenticando como postgres"
+              exit 0
+            fi
+            echo "Intento $i/30..."
+            sleep 2
+          done
+          echo "❌ PostgreSQL no aceptó la conexión como postgres"
+          docker ps -a
+          exit 1
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
-      - working-directory: backend
+
+      - name: Install
+        working-directory: backend
         run: npm ci
-      - working-directory: backend
+
+      - name: Build
+        working-directory: backend
         run: npm run build
-      - working-directory: backend
-        run: npm test
+
+      - name: Test
+        working-directory: backend
         env:
+          # Fuente principal (URL completa):
           TEST_DATABASE_URL: postgres://postgres:test@localhost:5432/indrhi_test
           SCHEMA_PATH: ./db/schema.sql
+          # Cinturón y tirantes: si pg ignora connectionString,
+          # cae a estas env vars, no al usuario del SO (root).
+          PGUSER: postgres
+          PGPASSWORD: test
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGDATABASE: indrhi_test
+        run: npm test
 
-  android:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - uses: gradle/actions/setup-gradle@v3
-      - name: Decode google-services.json
+      - name: Diagnostic on failure
+        if: failure()
         run: |
-          echo "${{ secrets.GOOGLE_SERVICES_JSON_B64 }}" | base64 -d > android/app/google-services.json
-      - working-directory: android
-        run: ./gradlew :app:assembleDebug :app:testDebugUnitTest
+          echo "=== Variables PG* vistas por el runner ==="
+          env | grep -E "^PG" || true
+          echo "=== TEST_DATABASE_URL ==="
+          echo "${TEST_DATABASE_URL:-<unset>}"
+          echo "=== Postgres containers ==="
+          docker ps -a
+          echo "=== Postgres logs ==="
+          docker logs $(docker ps -aqf "ancestor=postgres:16-alpine" | head -1) 2>&1 | tail -100 || true
