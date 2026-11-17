@@ -13,11 +13,11 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v3
-      - name: Decode keystore y google-services
+      - name: Decode keystore
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 -d > android/app/release.keystore
           echo "${{ secrets.GOOGLE_SERVICES_JSON_B64 }}" | base64 -d > android/app/google-services.json
-      - name: Build firmado
+      - name: Build AAB
         working-directory: android
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/android/app/release.keystore
