@@ -1,0 +1,38 @@
+# Node
+node_modules/
+dist/
+*.log
+.env
+.env.local
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/*.iml
+android/app/google-services.json
+android/app/release.keystore
+android/app/*.jks
+android/captures/
+
+# Firebase Service Account
+**/firebase-sa.json
+**/serviceAccountKey.json
+
+# PostgreSQL dump
+*.dump
+*.sql.gz
+
+# IDE
+.idea/
+.vscode/
+.DS_Store
+
+# Gradle wrapper jar (regenerable)
+!android/gradle/wrapper/gradle-wrapper.jar
+
+# Coverage
+coverage/
+.nyc_output/
