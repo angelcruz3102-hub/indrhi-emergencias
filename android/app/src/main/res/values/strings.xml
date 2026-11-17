@@ -1,0 +1,25 @@
+<resources>
+    <string name="app_name">Brigadas INDRHI</string>
+    <string name="app_short_name">INDRHI</string>
+    <string name="channel_red_name">Alerta ROJA (emergencia)</string>
+    <string name="channel_red_desc">Riesgo de vida o evacuación. Rompe No Molestar y usa sonido de alarma.</string>
+    <string name="channel_yellow_name">Alerta AMARILLA</string>
+    <string name="channel_yellow_desc">Requiere acuse de recibo. Sonido estándar alto.</string>
+    <string name="channel_green_name">Avisos VERDES</string>
+    <string name="channel_green_desc">Información operativa: rutas, reingreso, inspecciones.</string>
+    <string name="action_ack">ACUSE DE RECIBO</string>
+    <string name="action_dismiss">ENTENDIDO</string>
+    <string name="drill_badge">SIMULACRO</string>
+    <string name="shake_cover_hold">Agáchate, cúbrete, sujétate</string>
+    <string name="building_format">Edificio %1$s</string>
+    <string name="footer_legal">Sistema interno de apoyo a brigadas del INDRHI. No sustituye a Alerta RD, al COE ni a los servicios nacionales de emergencia. La orden de evacuación es siempre emitida por una persona autorizada.</string>
+    <string name="pilot_banner">Piloto ED1 · 30 días. Versión de validación operativa.</string>
+    <string name="health_notifications">Notificaciones del sistema activas</string>
+    <string name="health_dnd">Acceso a No Molestar concedido</string>
+    <string name="health_fullscreen">Pantalla completa permitida (Android 14+)</string>
+    <string name="health_battery">Batería sin restricciones</string>
+    <string name="health_location">Presencia conocida (geocerca o QR)</string>
+    <string name="test_alarm">Probar alarma</string>
+    <string name="test_alert_title">PRUEBA · ALERTA ROJA</string>
+    <string name="test_alert_message">Verificación de canal, sonido, pantalla completa y vibración. No es una emergencia real.</string>
+</resources>
