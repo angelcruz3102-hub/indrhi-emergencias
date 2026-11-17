@@ -1,5 +1,3 @@
--- Bloquea UPDATE y DELETE sobre incident_event y audit_log (regla §1.3).
--- TRUNCATE se permite solo al rol owner (para tests y migraciones).
 CREATE OR REPLACE FUNCTION reject_mutation() RETURNS trigger AS $$
 BEGIN
   RAISE EXCEPTION 'Tabla % es inmutable (operación % bloqueada).', TG_TABLE_NAME, TG_OP
