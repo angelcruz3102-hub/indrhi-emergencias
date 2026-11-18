@@ -75,6 +75,10 @@ class NativeBridge(private val context: Context) {
             ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS)
             != PackageManager.PERMISSION_GRANTED
         ) return
+        @JavascriptInterface
+fun stopAlarm() {
+    container.alertNotifier.stopLastAlarm()
+}
 
         val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
