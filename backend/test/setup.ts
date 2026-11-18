@@ -4,21 +4,15 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
-// ────────────────────────────────────────────────────────────────
-// Resolución del connection string.
-//   - `||` (no `??`): si llega '' o undefined, cae al default.
-//   - Guard explícito: si algo quedó mal, falla ruidosamente AQUÍ
-//     y no más abajo con "role root does not exist".
-// ────────────────────────────────────────────────────────────────
 const connectionString =
   (process.env.TEST_DATABASE_URL ?? '').trim() ||
-  'postgres://postgres:test@localhost:5432/indrhi_test';
+  'postgres://postgres:test@127.0.0.1:5432/indrhi_test';
 
 const parsed = new URL(connectionString);
 if (!parsed.username) {
   throw new Error(
     `TEST_DATABASE_URL sin usuario: "${connectionString}". ` +
-      `Se esperaba algo como postgres://postgres:test@localhost:5432/indrhi_test`,
+      `Se esperaba algo como postgres://postgres:test@127.0.0.1:5432/indrhi_test`,
   );
 }
 if (parsed.username === 'root') {
@@ -28,14 +22,9 @@ if (parsed.username === 'root') {
   );
 }
 
-console.log(
-  `[test/setup] conectando como "${parsed.username}" a ${parsed.host}:${parsed.port}${parsed.pathname}`,
-);
-
 export const testPool = new pg.Pool({
   connectionString,
   max: 2,
-  // Sin `user`, sin `password` sueltos: TODO viene del connectionString.
 });
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -43,27 +32,57 @@ const schemaPath = process.env.SCHEMA_PATH ?? resolve(__dirname, '../db/schema.s
 const migrationsDir = resolve(__dirname, '../db/migrations');
 const seedPath = resolve(__dirname, 'seed.sql');
 
+const CLEAN_TABLES_SQL = `
+  DO $$
+  DECLARE stmt text;
+  BEGIN
+    SELECT 'TRUNCATE TABLE ' || string_agg(format('%I.%I', schemaname, tablename), ', ') || ' RESTART IDENTITY CASCADE'
+      INTO stmt
+      FROM pg_tables
+     WHERE schemaname = 'public'
+       AND tablename NOT IN ('role', 'alert_policy');
+    IF stmt IS NOT NULL THEN
+      EXECUTE stmt;
+    END IF;
+  END $$;
+`;
+
 beforeAll(async () => {
-  await testPool.query(readFileSync(schemaPath, 'utf8'));
-  if (existsSync(migrationsDir)) {
-    for (const file of readdirSync(migrationsDir).sort()) {
-      if (file.endsWith('.sql')) {
-        await testPool.query(readFileSync(resolve(migrationsDir, file), 'utf8'));
+  const client = await testPool.connect();
+  try {
+    // Candado exclusivo en la misma sesión para evitar colisiones y deadlocks
+    await client.query('SELECT pg_advisory_lock(987654321)');
+    try {
+      const check = await client.query<{ exists: boolean }>(
+        "SELECT to_regclass('public.site') IS NOT NULL AS exists",
+      );
+
+      // 1) Crear tablas y migraciones SOLO la primera vez
+      if (!check.rows[0]?.exists) {
+        await client.query(readFileSync(schemaPath, 'utf8'));
+        if (existsSync(migrationsDir)) {
+          for (const file of readdirSync(migrationsDir).sort()) {
+            if (file.endsWith('.sql')) {
+              await client.query(readFileSync(resolve(migrationsDir, file), 'utf8'));
+            }
+          }
+        }
       }
+
+      // 2) Limpiar datos previos y cargar seed.sql limpio para este archivo de test
+      await client.query(CLEAN_TABLES_SQL);
+      if (existsSync(seedPath)) {
+        await client.query(readFileSync(seedPath, 'utf8'));
+      }
+    } finally {
+      await client.query('SELECT pg_advisory_unlock(987654321)');
     }
-  }
-  if (existsSync(seedPath)) {
-    await testPool.query(readFileSync(seedPath, 'utf8'));
+  } finally {
+    client.release();
   }
 });
 
 afterAll(async () => {
-  await testPool.query(`
-    TRUNCATE TABLE
-      alert_delivery, alert, safety_status, building_clearance,
-      incident_event, incident, duty_override, time_off, shift_instance,
-      assignment, device, person, perimeter_zone, building, site
-    RESTART IDENTITY CASCADE
-  `);
+  await testPool.query(CLEAN_TABLES_SQL);
   await testPool.end();
 });
