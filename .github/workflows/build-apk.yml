@@ -21,6 +21,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Normalize package name (do -> com)
+        run: |
+          if [ -d android/app/src/main/java/do/indrhi/emergencias ]; then
+            mkdir -p android/app/src/main/java/com/indrhi
+            cp -r android/app/src/main/java/do/indrhi/emergencias android/app/src/main/java/com/indrhi/emergencias
+            rm -rf android/app/src/main/java/do
+            find android/app/src -type f \( -name "*.kt" -o -name "*.java" -o -name "*.xml" \) -exec sed -i 's/do\.indrhi\.emergencias/com.indrhi.emergencias/g' {} +
+          fi
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
