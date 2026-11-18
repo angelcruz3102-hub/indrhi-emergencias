@@ -50,12 +50,14 @@ jobs:
           fi
           chmod +x ./gradlew
 
-      - name: Decode google-services.json
+      - name: Configure google-services.json
         env:
           GS_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
         run: |
           if [ -n "$GS_B64" ]; then
             echo "$GS_B64" | base64 -d > android/app/google-services.json
+          elif [ ! -f android/app/google-services.json ]; then
+            printf '%s\n' '{"project_info":{"project_number":"123456789012","project_id":"indrhi-emergencias-dev","storage_bucket":"indrhi-emergencias-dev.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:123456789012:android:1111111111111111111111","android_client_info":{"package_name":"com.indrhi.emergencias"}},"oauth_client":[],"api_key":[{"current_key":"AIzaSyDummyKeyForCiBuildOnly00000000000"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}},{"client_info":{"mobilesdk_app_id":"1:123456789012:android:2222222222222222222222","android_client_info":{"package_name":"com.indrhi.emergencias.debug"}},"oauth_client":[],"api_key":[{"current_key":"AIzaSyDummyKeyForCiBuildOnly00000000000"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}' > android/app/google-services.json
           fi
 
       - name: Build debug APK
