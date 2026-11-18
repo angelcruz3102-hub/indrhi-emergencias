@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d47a1" />
+  <title>INDRHI Emergencias</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    html, body { background: #f4f6f9; color: #1e293b; padding: 16px;
+      padding-top: calc(16px + env(safe-area-inset-top));
+      padding-bottom: calc(40px + env(safe-area-inset-bottom));
+      min-height: 100vh; }
+    header { background: #0d47a1; color: #fff; padding: 16px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.12); }
+    header h1 { font-size: 1.2rem; font-weight: 700; }
+    header p { font-size: 0.85rem; opacity: 0.9; margin-top: 4px; }
+    .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .card h2 { font-size: 1rem; margin-bottom: 10px; color: #0f172a; display: flex; justify-content: space-between; align-items: center; }
+    .badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 999px; font-weight: 600; background: #e2e8f0; color: #334155; }
+    .badge.ok { background: #dcfce7; color: #166534; }
+    .badge.warn { background: #fef3c7; color: #92400e; }
+    .badge.err { background: #fee2e2; color: #991b1b; }
+    .btn { display: block; width: 100%; border: none; border-radius: 10px; padding: 14px; font-size: 0.95rem; font-weight: 700; cursor: pointer; text-align: center; margin-top: 8px; transition: opacity 0.15s, transform 0.05s; font-family: inherit; color: inherit; }
+    .btn:active { opacity: 0.8; transform: scale(0.99); }
+    .btn-red { background: #b71c1c; color: #fff; }
+    .btn-dark { background: #1e293b; color: #fff; }
+    .btn-amber { background: #d97706; color: #fff; }
+    .btn-green { background: #15803d; color: #fff; }
+    .btn-outline { background: #f8fafc; color: #0d47a1; border: 1px solid #cbd5e1; font-weight: 600; padding: 10px; font-size: 0.85rem; }
+    .health-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.88rem; }
+    .health-row:last-child { border-bottom: none; }
+    .health-row button { border: none; cursor: pointer; font-family: inherit; background: #fef3c7; color: #92400e; padding: 6px 10px; border-radius: 8px; font-weight: 600; font-size: 0.78rem; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    #log { font-size: 0.8rem; color: #475569; margin-top: 10px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; min-height: 40px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+    .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+      background: #1e293b; color: #fff; padding: 12px 22px; border-radius: 24px;
+      font-size: 0.85rem; z-index: 1000; opacity: 0; pointer-events: none;
+      transition: opacity 0.25s, transform 0.25s; max-width: 90vw; text-align: center; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>INDRHI · Gestión de Emergencias</h1>
+    <p id="presence-info">Cargando estado del recinto…</p>
+  </header>
+
+  <div class="card">
+    <h2>Sirena de Evacuación <span class="badge" id="building-badge">—</span></h2>
+    <button class="btn btn-red" onclick="testRedAlarm()">🚨 Activar Sirena Roja (Volumen Máximo)</button>
+    <button class="btn btn-dark" onclick="stopRedAlarm()">⏹ Detener Sirena</button>
+    <div class="grid-2" style="margin-top: 12px;">
+      <button class="btn btn-green" onclick="reportSafety('A_SALVO')">✅ Estoy a salvo</button>
+      <button class="btn btn-amber" onclick="reportSafety('NECESITA_AYUDA')">🆘 Necesito ayuda</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Reporte Rápido (3 Toques)</h2>
+    <div class="grid-2">
+      <button class="btn btn-outline" onclick="quickReport('INCENDIO')">🔥 Fuego / Humo</button>
+      <button class="btn btn-outline" onclick="quickReport('MEDICA')">🏥 Dispensario</button>
+      <button class="btn btn-outline" onclick="quickReport('SISMO')">📳 Sismo</button>
+      <button class="btn btn-outline" onclick="quickReport('EVACUACION')">🚪 Evacuación</button>
+    </div>
+    <div id="log">Listo. Toca cualquier botón para probar la respuesta local.</div>
+  </div>
+
+  <div class="card">
+    <h2>Salud de Entrega (Audífonos / DND) <span class="badge" id="health-summary">—</span></h2>
+    <div id="health-list">Verificando permisos del dispositivo…</div>
+    <button class="btn btn-outline" style="margin-top:12px;" onclick="refreshStatus(true)">↻ Actualizar diagnóstico</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    'use strict';
+    const $ = (id) => document.getElementById(id);
+
+    function bridge() {
+      return (typeof window.IndrhiBridge !== 'undefined') ? window.IndrhiBridge : null;
+    }
+    function callBridge(method, ...args) {
+      const b = bridge();
+      if (!b || typeof b[method] !== 'function') return null;
+      try { return b[method](...args); }
+      catch (e) { console.warn('[bridge]', method, e); return null; }
+    }
+
+    let toastTimer = null;
+    function toast(msg, ms = 2200) {
+      const t = $('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+    }
+
+    function logMsg(msg) {
+      $('log').textContent = new Date().toLocaleTimeString() + ' · ' + msg;
+    }
+
+    function testRedAlarm() {
+      if (callBridge('testAlarm') === null) {
+        toast('Puente nativo no disponible');
+        logMsg('Puente nativo no detectado.');
+        return;
+      }
+      toast('Sirena activada');
+      logMsg('Sirena de evacuación activada al 100% de volumen.');
+    }
+
+    function stopRedAlarm() {
+      callBridge('stopAlarm');
+      toast('Sirena detenida');
+      logMsg('Sirena detenida.');
+    }
+
+    function reportSafety(status) {
+      callBridge('stopAlarm');
+      toast(status === 'A_SALVO' ? 'Estado: A SALVO' : 'Alerta: NECESITA AYUDA');
+      logMsg(status === 'A_SALVO'
+        ? 'Estado registrado: ESTOY A SALVO.'
+        : 'Alerta enviada a brigada y dispensario: NECESITA AYUDA.');
+    }
+
+    function quickReport(type) {
+      toast('Reporte: ' + type);
+      logMsg('Incidente seleccionado: ' + type + '. Listo para confirmar despacho.');
+    }
+
+    function refreshStatus(notify) {
+      renderContext();
+      renderHealth();
+      if (notify) toast('Diagnóstico actualizado');
+    }
+
+    function renderContext() {
+      const raw = callBridge('getContext');
+      if (!raw) {
+        $('presence-info').textContent = 'Modo vista previa (sin puente Android)';
+        $('building-badge').textContent = '—';
+        return;
+      }
+      try {
+        const ctx = JSON.parse(raw);
+        const state = ctx.presence_state || 'DESCONOCIDA';
+        $('presence-info').textContent =
+          'Presencia: ' + state + (ctx.presence_source ? ' (' + ctx.presence_source + ')' : '')
+          + (ctx.app_version ? ' · v' + ctx.app_version : '');
+        $('building-badge').textContent = ctx.building_code || '—';
+      } catch (e) {
+        $('presence-info').textContent = 'Conectado al núcleo nativo Android';
+      }
+    }
+
+    function renderHealth() {
+      const raw = callBridge('getHealth');
+      if (!raw) {
+        $('health-list').innerHTML = '<div class="health-row"><span>Puente nativo</span><span class="badge warn">Inactivo</span></div>';
+        $('health-summary').textContent = '—';
+        $('health-summary').className = 'badge warn';
+        return;
+      }
+      try {
+        const h = JSON.parse(raw);
+        const items = [
+          { label: 'Notificaciones',              ok: h.notifications, action: 'openNotificationSettings' },
+          { label: 'Romper No Molestar (DND)',    ok: h.dnd_access,    action: 'openDndSettings' },
+          { label: 'Pantalla Completa (Bloqueo)', ok: h.full_screen,   action: 'openFullScreenSettings' },
+          { label: 'Sin restricción de batería',  ok: h.battery,       action: 'openBatterySettings' },
+          { label: 'Ubicación / Geocerca',        ok: h.location,      action: null }
+        ];
+
+        $('health-list').innerHTML = items.map(item => {
+          const ok = !!item.ok;
+          return (
+            '<div class="health-row">' +
+              '<span>' + item.label + '</span>' +
+              (ok
+                ? '<span class="badge ok">Activo</span>'
+                : (item.action
+                    ? '<button onclick="openPerm(\'' + item.action + '\')">Activar →</button>'
+                    : '<span class="badge warn">Pendiente</span>'))
+            + '</div>'
+          );
+        }).join('');
+
+        const okCount = items.filter(i => !!i.ok).length;
+        $('health-summary').textContent = okCount + '/' + items.length;
+        $('health-summary').className = 'badge ' +
+          (okCount === items.length ? 'ok' : okCount >= 3 ? 'warn' : 'err');
+      } catch (e) {
+        $('health-list').textContent = 'Error leyendo diagnóstico: ' + e.message;
+      }
+    }
+
+    function openPerm(fn) {
+      if (!fn) { toast('No hay ajuste directo para este permiso'); return; }
+      if (callBridge(fn) === null) toast('Acción no disponible');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      refreshStatus(false);
+      setInterval(() => refreshStatus(false), 10_000);
+    });
+  </script>
+</body>
+</html>
