@@ -21,8 +21,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Normalize package name (do -> com)
+      - name: Sync src and normalize package (do -> com)
         run: |
+          if [ ! -f android/app/src/main/AndroidManifest.xml ] && [ -f app/src/main/AndroidManifest.xml ]; then
+            mkdir -p android/app/src
+            cp -r app/src/* android/app/src/
+          fi
           if [ -d android/app/src/main/java/do/indrhi/emergencias ]; then
             mkdir -p android/app/src/main/java/com/indrhi
             cp -r android/app/src/main/java/do/indrhi/emergencias android/app/src/main/java/com/indrhi/emergencias
