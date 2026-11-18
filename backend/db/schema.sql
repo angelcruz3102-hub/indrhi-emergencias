@@ -26,7 +26,7 @@ returns table (person_id uuid, delivery_reason text) language sql stable as $$
     select * from alert_policy where severity = p_severity
   ),
   role_candidates as (
-    -- Nivel 1 y 2: candidatos según asignación vigente y alcance del rol
+    -- Nivel 1 y 2: candidatos según asignación vigente
     select distinct
       a.person_id,
       coalesce(a.building_id, p.home_building_id) as building_id,
@@ -50,7 +50,7 @@ returns table (person_id uuid, delivery_reason text) language sql stable as $$
         ))
       )
     union
-    -- Nivel 3: todo el personal activo del recinto (tenga o no asignación especial)
+    -- Nivel 3: todo el personal activo del recinto
     select distinct
       p.id as person_id,
       coalesce(a.building_id, p.home_building_id) as building_id,
@@ -64,39 +64,42 @@ returns table (person_id uuid, delivery_reason text) language sql stable as $$
   ),
   active_override as (
     select o.* from duty_override o where o.during @> p_at
-  )
-  select distinct rc.person_id,
-    case
-      when exists (select 1 from on_duty(p_at) od where od.person_id = rc.person_id) then 'EN_TURNO'
-      when exists (
-        select 1 from active_override ao
-        where ao.scope = 'TODOS'
-           or (ao.scope = 'EDIFICIO' and ao.building_id = rc.building_id)
-           or (ao.scope = 'ROL' and ao.role_code = rc.role_code)
-      ) then 'CONVOCATORIA_SEGURIDAD'
-      when (select presence_overrides_shift from policy)
-        and exists (
+  ),
+  presence_eval as (
+    select
+      rc.person_id,
+      rc.building_id,
+      rc.role_code,
+      (
+        not exists (select 1 from device d where d.person_id = rc.person_id)
+        or exists (
           select 1 from device d
           where d.person_id = rc.person_id
             and (was_inside_at(d, p_at) or d.presence_state = 'DESCONOCIDA')
-        ) then 'DENTRO_FUERA_DE_TURNO'
+        )
+      ) as is_inside_or_unknown
+    from role_candidates rc
+  )
+  select distinct pe.person_id,
+    case
+      when exists (select 1 from on_duty(p_at) od where od.person_id = pe.person_id) then 'EN_TURNO'
+      when exists (
+        select 1 from active_override ao
+        where ao.scope = 'TODOS'
+           or (ao.scope = 'EDIFICIO' and ao.building_id = pe.building_id)
+           or (ao.scope = 'ROL' and ao.role_code = pe.role_code)
+      ) then 'CONVOCATORIA_SEGURIDAD'
+      when (select presence_overrides_shift from policy) and pe.is_inside_or_unknown then 'DENTRO_FUERA_DE_TURNO'
     end as delivery_reason
-  from role_candidates rc
+  from presence_eval pe
   where
     not (select respects_shift from policy)
-    or exists (select 1 from on_duty(p_at) od where od.person_id = rc.person_id)
+    or exists (select 1 from on_duty(p_at) od where od.person_id = pe.person_id)
     or exists (
       select 1 from active_override ao
       where ao.scope = 'TODOS'
-         or (ao.scope = 'EDIFICIO' and ao.building_id = rc.building_id)
-         or (ao.scope = 'ROL' and ao.role_code = rc.role_code)
+         or (ao.scope = 'EDIFICIO' and ao.building_id = pe.building_id)
+         or (ao.scope = 'ROL' and ao.role_code = pe.role_code)
     )
-    or (
-      (select presence_overrides_shift from policy)
-      and exists (
-        select 1 from device d
-        where d.person_id = rc.person_id
-          and (was_inside_at(d, p_at) or d.presence_state = 'DESCONOCIDA')
-      )
-    )
+    or ((select presence_overrides_shift from policy) and pe.is_inside_or_unknown)
 $$;
