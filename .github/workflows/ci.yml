@@ -23,10 +23,13 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
-          --health-start-period 20s
+          --health-start-period 10s
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
       - name: Verify PostgreSQL accepts "postgres"
         env:
@@ -34,8 +37,8 @@ jobs:
         run: |
           set -e
           for i in $(seq 1 30); do
-            if psql -h localhost -U postgres -d indrhi_test \
-                 -c "SELECT current_user, current_database();" 2>/dev/null; then
+            if psql -h 127.0.0.1 -U postgres -d indrhi_test \
+                 -c "SELECT current_user, current_database();"; then
               echo "✅ PostgreSQL listo y autenticando como postgres"
               exit 0
             fi
@@ -49,12 +52,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
 
       - name: Install
         working-directory: backend
-        run: npm ci
+        run: npm install
 
       - name: Build
         working-directory: backend
@@ -63,23 +64,11 @@ jobs:
       - name: Test
         working-directory: backend
         env:
-          TEST_DATABASE_URL: postgres://postgres:test@localhost:5432/indrhi_test
+          TEST_DATABASE_URL: postgres://postgres:test@127.0.0.1:5432/indrhi_test
           SCHEMA_PATH: ./db/schema.sql
           PGUSER: postgres
           PGPASSWORD: test
-          PGHOST: localhost
+          PGHOST: 127.0.0.1
           PGPORT: "5432"
           PGDATABASE: indrhi_test
         run: npm test
-
-      - name: Diagnostic on failure
-        if: failure()
-        run: |
-          echo "=== PG* env vars ==="
-          env | grep -E "^PG" || true
-          echo "=== TEST_DATABASE_URL ==="
-          echo "${TEST_DATABASE_URL:-<unset>}"
-          echo "=== Containers ==="
-          docker ps -a
-          echo "=== Postgres logs ==="
-          docker logs $(docker ps -aqf "ancestor=postgres:16-alpine" | head -1) 2>&1 | tail -100 || true
