@@ -33,6 +33,7 @@ jobs:
           gradle-version: '8.7'
 
       - name: Ensure Gradle wrapper
+        working-directory: android
         run: |
           if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
             gradle wrapper --gradle-version 8.7 --distribution-type bin
@@ -44,16 +45,17 @@ jobs:
           GS_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
         run: |
           if [ -n "$GS_B64" ]; then
-            echo "$GS_B64" | base64 -d > app/google-services.json
+            echo "$GS_B64" | base64 -d > android/app/google-services.json
           fi
 
       - name: Build debug APK
+        working-directory: android
         run: ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Locate APK
         id: apk
         run: |
-          APK_PATH=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
+          APK_PATH=$(find android/app/build/outputs/apk/debug -name "*.apk" | head -1)
           echo "path=$APK_PATH" >> "$GITHUB_OUTPUT"
           echo "APK: $APK_PATH"
           ls -la "$APK_PATH"
