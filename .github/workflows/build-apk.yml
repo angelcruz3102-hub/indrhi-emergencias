@@ -31,20 +31,8 @@ jobs:
           RES_DIR="android/app/src/main/res"
           mkdir -p "$RES_DIR/xml" "$RES_DIR/drawable" "$RES_DIR/mipmap-anydpi-v26" "$RES_DIR/values" "$RES_DIR/raw"
 
-          # Generar sirena bitonal aguda si no existe
           if [ ! -f "$RES_DIR/raw/sirena_emergencia.wav" ]; then
-            python3 -c '
-import wave, struct, math
-rate = 22050
-with wave.open("android/app/src/main/res/raw/sirena_emergencia.wav", "w") as f:
-    f.setnchannels(1)
-    f.setsampwidth(2)
-    f.setframerate(rate)
-    for i in range(rate * 4):
-        freq = 1320.0 if (i // (rate // 4)) % 2 == 0 else 880.0
-        val = int(32767.0 * math.sin(2.0 * math.pi * freq * i / rate))
-        f.writeframes(struct.pack("<h", val))
-'
+            python3 -c 'import wave,struct,math; r=22050; f=wave.open("android/app/src/main/res/raw/sirena_emergencia.wav","w"); f.setnchannels(1); f.setsampwidth(2); f.setframerate(r); f.writeframes(b"".join(struct.pack("<h",int(32767*math.sin(2*math.pi*(1320 if (i//(r//4))%2==0 else 880)*i/r))) for i in range(r*4))); f.close()'
           fi
 
           if [ ! -f "$RES_DIR/xml/network_security_config.xml" ]; then
@@ -59,7 +47,6 @@ with wave.open("android/app/src/main/res/raw/sirena_emergencia.wav", "w") as f:
             printf '%s\n' '<?xml version="1.0" encoding="utf-8"?><resources><style name="Theme.Indrhi" parent="android:Theme.Material.Light.NoActionBar" /><style name="Theme.Indrhi.FullScreenAlert" parent="android:Theme.Material.NoActionBar.Fullscreen" /></resources>' > "$RES_DIR/values/ci_fallback_themes.xml"
           fi
 
-          # Normalizar paquete do.indrhi.emergencias -> com.indrhi.emergencias
           if [ -d android/app/src/main/java/do/indrhi/emergencias ]; then
             mkdir -p android/app/src/main/java/com/indrhi
             cp -rf android/app/src/main/java/do/indrhi/emergencias/* android/app/src/main/java/com/indrhi/emergencias/ 2>/dev/null || cp -rf android/app/src/main/java/do/indrhi/emergencias android/app/src/main/java/com/indrhi/emergencias
