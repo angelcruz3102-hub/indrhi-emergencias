@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "do.indrhi.emergencias"
+    namespace = "com.indrhi.emergencias"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "do.indrhi.emergencias"
+        applicationId = "com.indrhi.emergencias"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
