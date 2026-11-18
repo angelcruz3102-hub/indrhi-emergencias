@@ -27,11 +27,10 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Gradle (caché)
-        uses: gradle/actions/setup-gradle@v3
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: 8.7
-          cache-read-only: false
+          gradle-version: '8.7'
 
       - name: Ensure Gradle wrapper
         run: |
@@ -40,11 +39,13 @@ jobs:
           fi
           chmod +x ./gradlew
 
-      - name: Decode google-services.json (si el secret existe)
-        if: ${{ secrets.GOOGLE_SERVICES_JSON_B64 != '' }}
+      - name: Decode google-services.json
+        env:
+          GS_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
         run: |
-          echo "${{ secrets.GOOGLE_SERVICES_JSON_B64 }}" | base64 -d > app/google-services.json
-        continue-on-error: true
+          if [ -n "$GS_B64" ]; then
+            echo "$GS_B64" | base64 -d > app/google-services.json
+          fi
 
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace --no-daemon
@@ -75,7 +76,6 @@ jobs:
             APK generada automáticamente desde `${{ github.sha }}`.
 
             **Descarga directa:** toca el archivo `.apk` abajo.
-            Instala en el teléfono habilitando "Instalar apps de origen desconocido" para tu navegador o gestor de archivos.
           files: ${{ steps.apk.outputs.path }}
           prerelease: true
           make_latest: true
