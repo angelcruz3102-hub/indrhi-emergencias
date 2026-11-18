@@ -21,13 +21,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Sync app -> android/app & ensure siren/resources
+      - name: Ensure siren audio and fallback resources
         run: |
-          if [ -d app/src ]; then
-            mkdir -p android/app/src
-            cp -rf app/src/* android/app/src/
-          fi
-
           RES_DIR="android/app/src/main/res"
           mkdir -p "$RES_DIR/xml" "$RES_DIR/drawable" "$RES_DIR/mipmap-anydpi-v26" "$RES_DIR/values" "$RES_DIR/raw"
 
@@ -45,13 +40,6 @@ jobs:
 
           if ! grep -q "Theme.Indrhi.FullScreenAlert" "$RES_DIR/values/"*.xml 2>/dev/null; then
             printf '%s\n' '<?xml version="1.0" encoding="utf-8"?><resources><style name="Theme.Indrhi" parent="android:Theme.Material.Light.NoActionBar" /><style name="Theme.Indrhi.FullScreenAlert" parent="android:Theme.Material.NoActionBar.Fullscreen" /></resources>' > "$RES_DIR/values/ci_fallback_themes.xml"
-          fi
-
-          if [ -d android/app/src/main/java/do/indrhi/emergencias ]; then
-            mkdir -p android/app/src/main/java/com/indrhi
-            cp -rf android/app/src/main/java/do/indrhi/emergencias/* android/app/src/main/java/com/indrhi/emergencias/ 2>/dev/null || cp -rf android/app/src/main/java/do/indrhi/emergencias android/app/src/main/java/com/indrhi/emergencias
-            rm -rf android/app/src/main/java/do
-            find android/app/src -type f \( -name "*.kt" -o -name "*.java" -o -name "*.xml" \) -exec sed -i 's/do\.indrhi\.emergencias/com.indrhi.emergencias/g' {} +
           fi
 
       - name: Set up JDK 17
