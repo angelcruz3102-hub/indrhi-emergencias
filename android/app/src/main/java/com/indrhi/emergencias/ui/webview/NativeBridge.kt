@@ -82,7 +82,6 @@ class NativeBridge(context: Context) {
     @JavascriptInterface
     fun stopAlarm() {
         sirenPlayer.stop()
-        container.alertNotifier.stopLastAlarm()
     }
 
     @JavascriptInterface
