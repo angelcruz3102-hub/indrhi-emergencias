@@ -21,18 +21,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Sync src, ensure resources, generate siren and normalize package
+      - name: Sync app -> android/app & ensure siren/resources
         run: |
-          if [ ! -f android/app/src/main/AndroidManifest.xml ] && [ -f app/src/main/AndroidManifest.xml ]; then
+          if [ -d app/src ]; then
             mkdir -p android/app/src
-            cp -r app/src/* android/app/src/
+            cp -rf app/src/* android/app/src/
           fi
 
           RES_DIR="android/app/src/main/res"
           mkdir -p "$RES_DIR/xml" "$RES_DIR/drawable" "$RES_DIR/mipmap-anydpi-v26" "$RES_DIR/values" "$RES_DIR/raw"
 
-          # Generar sirena bitonal aguda de evacuación (1320 Hz / 880 Hz)
-          python3 -c '
+          # Generar sirena bitonal aguda si no existe
+          if [ ! -f "$RES_DIR/raw/sirena_emergencia.wav" ]; then
+            python3 -c '
 import wave, struct, math
 rate = 22050
 with wave.open("android/app/src/main/res/raw/sirena_emergencia.wav", "w") as f:
@@ -44,18 +45,10 @@ with wave.open("android/app/src/main/res/raw/sirena_emergencia.wav", "w") as f:
         val = int(32767.0 * math.sin(2.0 * math.pi * freq * i / rate))
         f.writeframes(struct.pack("<h", val))
 '
+          fi
 
           if [ ! -f "$RES_DIR/xml/network_security_config.xml" ]; then
             printf '%s\n' '<?xml version="1.0" encoding="utf-8"?><network-security-config><base-config cleartextTrafficPermitted="false"><trust-anchors><certificates src="system" /></trust-anchors></base-config></network-security-config>' > "$RES_DIR/xml/network_security_config.xml"
-          fi
-
-          if [ ! -f "$RES_DIR/drawable/ic_launcher_foreground.xml" ]; then
-            printf '%s\n' '<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108"><path android:fillColor="#FFFFFFFF" android:pathData="M54,30L30,78h48L54,30zM56,72h-4v-4h4v4zM56,64h-4V48h4v16z"/></vector>' > "$RES_DIR/drawable/ic_launcher_foreground.xml"
-          fi
-
-          if [ ! -f "$RES_DIR/mipmap-anydpi-v26/ic_launcher.xml" ]; then
-            printf '%s\n' '<?xml version="1.0" encoding="utf-8"?><adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/ic_launcher_background"/><foreground android:drawable="@drawable/ic_launcher_foreground"/></adaptive-icon>' > "$RES_DIR/mipmap-anydpi-v26/ic_launcher.xml"
-            cp "$RES_DIR/mipmap-anydpi-v26/ic_launcher.xml" "$RES_DIR/mipmap-anydpi-v26/ic_launcher_round.xml"
           fi
 
           if ! grep -q "ic_launcher_background" "$RES_DIR/values/"*.xml 2>/dev/null; then
@@ -66,9 +59,10 @@ with wave.open("android/app/src/main/res/raw/sirena_emergencia.wav", "w") as f:
             printf '%s\n' '<?xml version="1.0" encoding="utf-8"?><resources><style name="Theme.Indrhi" parent="android:Theme.Material.Light.NoActionBar" /><style name="Theme.Indrhi.FullScreenAlert" parent="android:Theme.Material.NoActionBar.Fullscreen" /></resources>' > "$RES_DIR/values/ci_fallback_themes.xml"
           fi
 
+          # Normalizar paquete do.indrhi.emergencias -> com.indrhi.emergencias
           if [ -d android/app/src/main/java/do/indrhi/emergencias ]; then
             mkdir -p android/app/src/main/java/com/indrhi
-            cp -r android/app/src/main/java/do/indrhi/emergencias android/app/src/main/java/com/indrhi/emergencias
+            cp -rf android/app/src/main/java/do/indrhi/emergencias/* android/app/src/main/java/com/indrhi/emergencias/ 2>/dev/null || cp -rf android/app/src/main/java/do/indrhi/emergencias android/app/src/main/java/com/indrhi/emergencias
             rm -rf android/app/src/main/java/do
             find android/app/src -type f \( -name "*.kt" -o -name "*.java" -o -name "*.xml" \) -exec sed -i 's/do\.indrhi\.emergencias/com.indrhi.emergencias/g' {} +
           fi
